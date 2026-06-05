@@ -49,7 +49,7 @@ export async function signup(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -63,6 +63,16 @@ export async function signup(
 
   if (error) {
     return { error: error.message };
+  }
+
+  // Quando a confirmacao de e-mail esta ativa, o signUp nao retorna sessao.
+  // Sem isso, o redirect para /dashboard seria revertido para /login sem
+  // explicacao. Avisamos o usuario de forma clara.
+  if (!data.session) {
+    return {
+      error:
+        "Conta criada! Confirme seu e-mail para entrar (ou desative a confirmacao de e-mail no Supabase).",
+    };
   }
 
   revalidatePath("/", "layout");
