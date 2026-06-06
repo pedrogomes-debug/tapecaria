@@ -225,6 +225,55 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["budgets"]["Insert"]>;
         Relationships: [];
       };
+      employees: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          role: string | null;
+          monthly_salary: number;
+          monthly_hours: number;
+          active: boolean;
+        } & Timestamps;
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          role?: string | null;
+          monthly_salary?: number;
+          monthly_hours?: number;
+          active?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["employees"]["Insert"]>;
+        Relationships: [];
+      };
+      budget_assignments: {
+        Row: {
+          id: string;
+          budget_id: string;
+          user_id: string;
+          employee_id: string | null;
+          name: string;
+          hours: number;
+          hourly_cost: number;
+          total: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          budget_id: string;
+          user_id: string;
+          employee_id?: string | null;
+          name: string;
+          hours: number;
+          hourly_cost: number;
+          total: number;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["budget_assignments"]["Insert"]
+        >;
+        Relationships: [];
+      };
       budget_items: {
         Row: {
           id: string;
@@ -275,3 +324,15 @@ export type ProductType =
   Database["public"]["Tables"]["product_types"]["Row"];
 export type Budget = Database["public"]["Tables"]["budgets"]["Row"];
 export type BudgetItem = Database["public"]["Tables"]["budget_items"]["Row"];
+export type Employee = Database["public"]["Tables"]["employees"]["Row"];
+export type BudgetAssignment =
+  Database["public"]["Tables"]["budget_assignments"]["Row"];
+
+export function employeeHourlyCost(emp: {
+  monthly_salary: number;
+  monthly_hours: number;
+}): number {
+  const hours = Number(emp.monthly_hours) || 0;
+  if (hours <= 0) return 0;
+  return (Number(emp.monthly_salary) || 0) / hours;
+}

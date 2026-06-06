@@ -15,6 +15,13 @@ export interface BudgetItemInput {
   unit_cost: number;
 }
 
+export interface BudgetAssignmentInput {
+  employee_id: string | null;
+  name: string;
+  hours: number;
+  hourly_cost: number;
+}
+
 export interface BudgetInput {
   id?: string;
   client_id?: string | null;
@@ -23,12 +30,11 @@ export interface BudgetInput {
   segment: Segment;
   notes?: string | null;
   valid_until?: string | null;
-  labor_hours: number;
-  labor_hourly_rate: number;
   fixed_cost_per_hour: number;
   tax_rate: number;
   profit_margin: number;
   card_fee: number;
+  assignments: BudgetAssignmentInput[];
   items: BudgetItemInput[];
 }
 
@@ -51,14 +57,26 @@ export async function saveBudget(
     .filter((i) => i.kind === "extra")
     .reduce((acc, i) => acc + (i.quantity || 0) * (i.unit_cost || 0), 0);
 
+  // Mao de obra a partir de quem executa: soma horas x custo/hora de cada um.
+  const assignments = (input.assignments || []).filter(
+    (a) => (a.hours || 0) > 0
+  );
+  const laborHours = assignments.reduce((acc, a) => acc + (a.hours || 0), 0);
+  const laborCost = assignments.reduce(
+    (acc, a) =>
+      acc + Math.round((a.hours || 0) * (a.hourly_cost || 0) * 100) / 100,
+    0
+  );
+  const effectiveRate = laborHours > 0 ? laborCost / laborHours : 0;
+
   // Recalcula no servidor para garantir integridade (nao confia no cliente).
   const pricing = computePricing({
     materials: materialLines.map((i) => ({
       quantity: i.quantity || 0,
       unitCost: i.unit_cost || 0,
     })),
-    laborHours: input.labor_hours || 0,
-    laborHourlyRate: input.labor_hourly_rate || 0,
+    laborHours,
+    laborHourlyRate: effectiveRate,
     fixedCostPerHour: input.fixed_cost_per_hour || 0,
     extraCost,
     taxRate: input.tax_rate || 0,
@@ -75,7 +93,7 @@ export async function saveBudget(
     notes: input.notes?.trim() || null,
     valid_until: input.valid_until || null,
     materials_cost: pricing.materialsCost,
-    labor_hours: input.labor_hours || 0,
+    labor_hours: laborHours,
     labor_cost: pricing.laborCost,
     fixed_cost: pricing.fixedCost,
     total_cost: pricing.totalCost,
@@ -95,6 +113,10 @@ export async function saveBudget(
       .eq("id", budgetId);
     if (error) return { error: error.message };
     await supabase.from("budget_items").delete().eq("budget_id", budgetId);
+    await supabase
+      .from("budget_assignments")
+      .delete()
+      .eq("budget_id", budgetId);
   } else {
     const { data, error } = await supabase
       .from("budgets")
@@ -134,6 +156,22 @@ export async function saveBudget(
 
   if (items.length) {
     const { error } = await supabase.from("budget_items").insert(items);
+    if (error) return { error: error.message };
+  }
+
+  if (assignments.length) {
+    const assignmentRows = assignments.map((a) => ({
+      budget_id: budgetId!,
+      user_id: user.id,
+      employee_id: a.employee_id || null,
+      name: a.name || "Mão de obra",
+      hours: a.hours || 0,
+      hourly_cost: a.hourly_cost || 0,
+      total: Math.round((a.hours || 0) * (a.hourly_cost || 0) * 100) / 100,
+    }));
+    const { error } = await supabase
+      .from("budget_assignments")
+      .insert(assignmentRows);
     if (error) return { error: error.message };
   }
 

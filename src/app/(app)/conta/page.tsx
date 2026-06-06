@@ -12,8 +12,9 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
-import type { Segment } from "@/lib/database.types";
+import type { Employee, Segment } from "@/lib/database.types";
 import { ProfileForm } from "./profile-form";
+import { EmployeesManager } from "./employees-manager";
 
 export default async function ContaPage() {
   const user = await requireUser();
@@ -23,6 +24,12 @@ export default async function ContaPage() {
     .select("company_name, owner_name, phone, tax_regime, segment")
     .eq("id", user.id)
     .maybeSingle();
+
+  const { data: employees } = await supabase
+    .from("employees")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("name");
 
   const sub = await getSubscription();
   const active = isSubscriptionActive(sub);
@@ -46,6 +53,18 @@ export default async function ContaPage() {
               segment: (profile?.segment ?? "ambos") as Segment,
             }}
           />
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Minha Tapeçaria</CardTitle>
+            <CardDescription>
+              Cadastre sua equipe e o salário de cada um. Esses valores são
+              usados no orçamento para calcular a mão de obra de quem executa o
+              serviço.
+            </CardDescription>
+          </CardHeader>
+          <EmployeesManager employees={(employees ?? []) as Employee[]} />
         </Card>
 
         <Card>

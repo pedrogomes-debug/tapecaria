@@ -44,9 +44,15 @@ export default async function BudgetDetailPage({
 
   if (!budget) notFound();
 
-  const [{ data: items }, clientRes, productRes] = await Promise.all([
+  const [{ data: items }, { data: assignments }, clientRes, productRes] =
+    await Promise.all([
     supabase
       .from("budget_items")
+      .select("*")
+      .eq("budget_id", id)
+      .order("created_at"),
+    supabase
+      .from("budget_assignments")
       .select("*")
       .eq("budget_id", id)
       .order("created_at"),
@@ -184,6 +190,38 @@ export default async function BudgetDetailPage({
               </TableBody>
             </Table>
           </div>
+
+          {assignments && assignments.length > 0 ? (
+            <div>
+              <h3 className="mb-2 text-sm font-semibold">Execução</h3>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Responsável</TableHead>
+                    <TableHead className="text-right">Horas</TableHead>
+                    <TableHead className="text-right">Custo/hora</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {assignments.map((a) => (
+                    <TableRow key={a.id}>
+                      <TableCell>{a.name}</TableCell>
+                      <TableCell className="text-right">
+                        {Number(a.hours)}h
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(Number(a.hourly_cost))}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(Number(a.total))}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : null}
 
           <div className="grid gap-6 sm:grid-cols-2">
             <div className="space-y-2 text-sm">

@@ -25,22 +25,39 @@ export default async function EditarOrcamentoPage({
 
   if (!budget) notFound();
 
-  const [{ data: clients }, { data: productTypes }, { data: materials }, { data: items }, settings] =
-    await Promise.all([
-      supabase.from("clients").select("*").eq("user_id", user.id).order("name"),
-      supabase
-        .from("product_types")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("name"),
-      supabase
-        .from("materials")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("name"),
-      supabase.from("budget_items").select("*").eq("budget_id", id),
-      getCostSettings(user.id),
-    ]);
+  const [
+    { data: clients },
+    { data: productTypes },
+    { data: materials },
+    { data: employees },
+    { data: items },
+    { data: budgetAssignments },
+    settings,
+  ] = await Promise.all([
+    supabase.from("clients").select("*").eq("user_id", user.id).order("name"),
+    supabase
+      .from("product_types")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("name"),
+    supabase
+      .from("materials")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("name"),
+    supabase
+      .from("employees")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("name"),
+    supabase.from("budget_items").select("*").eq("budget_id", id),
+    supabase
+      .from("budget_assignments")
+      .select("*")
+      .eq("budget_id", id)
+      .order("created_at"),
+    getCostSettings(user.id),
+  ]);
 
   const defaults = {
     laborHourlyRate: settings.labor_hourly_rate,
@@ -53,6 +70,26 @@ export default async function EditarOrcamentoPage({
     cardFee: settings.default_card_fee,
   };
 
+  const laborHours = Number(budget.labor_hours);
+  const assignments =
+    budgetAssignments && budgetAssignments.length > 0
+      ? budgetAssignments.map((a) => ({
+          employee_id: a.employee_id,
+          name: a.name,
+          hours: Number(a.hours),
+          hourly_cost: Number(a.hourly_cost),
+        }))
+      : laborHours > 0
+      ? [
+          {
+            employee_id: null,
+            name: "Mão de obra",
+            hours: laborHours,
+            hourly_cost: Number(budget.labor_cost) / laborHours,
+          },
+        ]
+      : [];
+
   let mk = 0;
   const initial: BudgetFormInitial = {
     id: budget.id,
@@ -62,12 +99,12 @@ export default async function EditarOrcamentoPage({
     segment: budget.segment as Segment,
     notes: budget.notes,
     valid_until: budget.valid_until,
-    labor_cost: Number(budget.labor_cost),
     fixed_cost: Number(budget.fixed_cost),
-    labor_hours: Number(budget.labor_hours),
+    labor_hours: laborHours,
     tax_rate: Number(budget.tax_rate),
     profit_margin: Number(budget.profit_margin),
     card_fee: Number(budget.card_fee),
+    assignments,
     materialLines: (items ?? [])
       .filter((i) => i.kind === "material")
       .map((i) => ({
@@ -97,6 +134,7 @@ export default async function EditarOrcamentoPage({
         clients={clients ?? []}
         productTypes={productTypes ?? []}
         materials={materials ?? []}
+        employees={employees ?? []}
         defaults={defaults}
         initial={initial}
       />

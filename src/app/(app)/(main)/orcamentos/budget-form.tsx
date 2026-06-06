@@ -24,15 +24,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { computePricing } from "@/lib/pricing";
+import { computePricing, round2 } from "@/lib/pricing";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { SEGMENTS } from "@/lib/constants";
-import type {
-  Client,
-  Material,
-  ProductType,
-  Segment,
+import {
+  employeeHourlyCost,
+  type Client,
+  type Employee,
+  type Material,
+  type ProductType,
+  type Segment,
 } from "@/lib/database.types";
+
+const MANUAL_VALUE = "__manual__";
 
 export interface BudgetFormDefaults {
   laborHourlyRate: number;
@@ -50,7 +54,6 @@ export interface BudgetFormInitial {
   segment: Segment;
   notes: string | null;
   valid_until: string | null;
-  labor_cost: number;
   fixed_cost: number;
   labor_hours: number;
   tax_rate: number;
@@ -58,6 +61,14 @@ export interface BudgetFormInitial {
   card_fee: number;
   materialLines: MaterialLineState[];
   extraLines: ExtraLineState[];
+  assignments: AssignmentInitial[];
+}
+
+export interface AssignmentInitial {
+  employee_id: string | null;
+  name: string;
+  hours: number;
+  hourly_cost: number;
 }
 
 interface MaterialLineState {
@@ -75,6 +86,14 @@ interface ExtraLineState {
   amount: number;
 }
 
+interface AssignmentLineState {
+  key: string;
+  employee_id: string | null;
+  name: string;
+  hours: number;
+  hourly_cost: number;
+}
+
 let counter = 0;
 const newKey = () => `k${Date.now()}_${counter++}`;
 
@@ -82,12 +101,14 @@ export function BudgetForm({
   clients,
   productTypes,
   materials,
+  employees,
   defaults,
   initial,
 }: {
   clients: Client[];
   productTypes: ProductType[];
   materials: Material[];
+  employees: Employee[];
   defaults: BudgetFormDefaults;
   initial?: BudgetFormInitial;
 }) {
@@ -103,15 +124,59 @@ export function BudgetForm({
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [validUntil, setValidUntil] = useState(initial?.valid_until ?? "");
 
-  const [laborHours, setLaborHours] = useState(initial?.labor_hours ?? 0);
-  const [laborRate, setLaborRate] = useState(
-    initial ? initial.labor_cost / (initial.labor_hours || 1) || defaults.laborHourlyRate : defaults.laborHourlyRate
-  );
   const [fixedPerHour, setFixedPerHour] = useState(
     initial && initial.labor_hours > 0
       ? initial.fixed_cost / initial.labor_hours
       : defaults.fixedCostPerHour
   );
+
+  const [assignmentLines, setAssignmentLines] = useState<AssignmentLineState[]>(
+    initial?.assignments?.map((a) => ({
+      key: newKey(),
+      employee_id: a.employee_id,
+      name: a.name,
+      hours: a.hours,
+      hourly_cost: a.hourly_cost,
+    })) ?? []
+  );
+
+  const laborHours = assignmentLines.reduce((acc, l) => acc + (l.hours || 0), 0);
+  const laborCost = assignmentLines.reduce(
+    (acc, l) => acc + round2((l.hours || 0) * (l.hourly_cost || 0)),
+    0
+  );
+  const effectiveRate = laborHours > 0 ? laborCost / laborHours : 0;
+
+  function addAssignmentLine() {
+    setAssignmentLines((prev) => [
+      ...prev,
+      { key: newKey(), employee_id: null, name: "", hours: 0, hourly_cost: 0 },
+    ]);
+  }
+
+  function onSelectEmployee(key: string, value: string) {
+    if (value === MANUAL_VALUE) {
+      setAssignmentLines((prev) =>
+        prev.map((l) =>
+          l.key === key ? { ...l, employee_id: null, name: "" } : l
+        )
+      );
+      return;
+    }
+    const emp = employees.find((e) => e.id === value);
+    setAssignmentLines((prev) =>
+      prev.map((l) =>
+        l.key === key
+          ? {
+              ...l,
+              employee_id: value,
+              name: emp?.name ?? l.name,
+              hourly_cost: emp ? round2(employeeHourlyCost(emp)) : l.hourly_cost,
+            }
+          : l
+      )
+    );
+  }
 
   const [taxPct, setTaxPct] = useState(
     (initial?.tax_rate ?? defaults.taxRate) * 100
@@ -169,14 +234,14 @@ export function BudgetForm({
           unitCost: l.unit_cost || 0,
         })),
         laborHours: laborHours || 0,
-        laborHourlyRate: laborRate || 0,
+        laborHourlyRate: effectiveRate || 0,
         fixedCostPerHour: fixedPerHour || 0,
         extraCost: extraLines.reduce((acc, e) => acc + (e.amount || 0), 0),
         taxRate: taxPct / 100,
         profitMargin: marginPct / 100,
         cardFee: cardPct / 100,
       }),
-    [materialLines, laborHours, laborRate, fixedPerHour, extraLines, taxPct, marginPct, cardPct]
+    [materialLines, laborHours, effectiveRate, fixedPerHour, extraLines, taxPct, marginPct, cardPct]
   );
 
   function handleSave() {
@@ -188,12 +253,18 @@ export function BudgetForm({
       segment,
       notes,
       valid_until: validUntil || null,
-      labor_hours: laborHours || 0,
-      labor_hourly_rate: laborRate || 0,
       fixed_cost_per_hour: fixedPerHour || 0,
       tax_rate: taxPct / 100,
       profit_margin: marginPct / 100,
       card_fee: cardPct / 100,
+      assignments: assignmentLines
+        .filter((l) => (l.hours || 0) > 0)
+        .map((l) => ({
+          employee_id: l.employee_id,
+          name: l.name || "Mão de obra",
+          hours: l.hours || 0,
+          hourly_cost: l.hourly_cost || 0,
+        })),
       items: [
         ...materialLines.map((l) => ({
           kind: "material" as const,
@@ -414,42 +485,150 @@ export function BudgetForm({
 
         <Card>
           <CardHeader>
-            <CardTitle>Mão de obra e custos fixos</CardTitle>
+            <CardTitle>Execução / mão de obra</CardTitle>
+            <CardDescription>
+              Selecione quem vai executar e quantas horas serão gastas. O custo
+              por hora vem do salário cadastrado em Minha Conta.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="labor_hours">Horas de trabalho</Label>
-              <Input
-                id="labor_hours"
-                type="number"
-                step="0.5"
-                min="0"
-                value={laborHours || ""}
-                onChange={(e) => setLaborHours(Number(e.target.value))}
-              />
+          <CardContent className="space-y-3">
+            {employees.length === 0 ? (
+              <p className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
+                Você ainda não cadastrou funcionários. Cadastre sua equipe em{" "}
+                <span className="font-medium">Minha Conta → Minha Tapeçaria</span>{" "}
+                ou adicione a mão de obra manualmente abaixo.
+              </p>
+            ) : null}
+
+            {assignmentLines.map((line) => (
+              <div
+                key={line.key}
+                className="grid grid-cols-12 items-end gap-2 rounded-lg border p-3"
+              >
+                <div className="col-span-12 space-y-1 sm:col-span-5">
+                  <Label className="text-xs">Quem executa</Label>
+                  <Select
+                    value={line.employee_id ?? MANUAL_VALUE}
+                    onValueChange={(v) => onSelectEmployee(line.key, v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.name} ({formatCurrency(employeeHourlyCost(emp))}/h)
+                        </SelectItem>
+                      ))}
+                      <SelectItem value={MANUAL_VALUE}>
+                        Manual / sem cadastro
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {line.employee_id === null ? (
+                    <Input
+                      className="mt-1"
+                      placeholder="Nome / descrição"
+                      value={line.name}
+                      onChange={(e) =>
+                        setAssignmentLines((prev) =>
+                          prev.map((l) =>
+                            l.key === line.key
+                              ? { ...l, name: e.target.value }
+                              : l
+                          )
+                        )
+                      }
+                    />
+                  ) : null}
+                </div>
+                <div className="col-span-4 space-y-1 sm:col-span-2">
+                  <Label className="text-xs">Horas</Label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    value={line.hours || ""}
+                    onChange={(e) =>
+                      setAssignmentLines((prev) =>
+                        prev.map((l) =>
+                          l.key === line.key
+                            ? { ...l, hours: Number(e.target.value) }
+                            : l
+                        )
+                      )
+                    }
+                  />
+                </div>
+                <div className="col-span-4 space-y-1 sm:col-span-2">
+                  <Label className="text-xs">Custo/hora</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={line.hourly_cost || ""}
+                    onChange={(e) =>
+                      setAssignmentLines((prev) =>
+                        prev.map((l) =>
+                          l.key === line.key
+                            ? { ...l, hourly_cost: Number(e.target.value) }
+                            : l
+                        )
+                      )
+                    }
+                  />
+                </div>
+                <div className="col-span-3 space-y-1 sm:col-span-2">
+                  <Label className="text-xs">Subtotal</Label>
+                  <div className="flex h-9 items-center text-sm font-medium">
+                    {formatCurrency((line.hours || 0) * (line.hourly_cost || 0))}
+                  </div>
+                </div>
+                <div className="col-span-1 flex justify-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() =>
+                      setAssignmentLines((prev) =>
+                        prev.filter((l) => l.key !== line.key)
+                      )
+                    }
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addAssignmentLine}
+              >
+                <Plus className="h-4 w-4" /> Adicionar execução
+              </Button>
+              <div className="w-full space-y-1 sm:w-48">
+                <Label htmlFor="fixed_per_hour" className="text-xs">
+                  Custo fixo/hora (R$)
+                </Label>
+                <Input
+                  id="fixed_per_hour"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={fixedPerHour || ""}
+                  onChange={(e) => setFixedPerHour(Number(e.target.value))}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="labor_rate">Valor/hora (R$)</Label>
-              <Input
-                id="labor_rate"
-                type="number"
-                step="0.01"
-                min="0"
-                value={laborRate || ""}
-                onChange={(e) => setLaborRate(Number(e.target.value))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="fixed_per_hour">Custo fixo/hora (R$)</Label>
-              <Input
-                id="fixed_per_hour"
-                type="number"
-                step="0.01"
-                min="0"
-                value={fixedPerHour || ""}
-                onChange={(e) => setFixedPerHour(Number(e.target.value))}
-              />
-            </div>
+            {laborHours > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Total: {laborHours}h de mão de obra ·{" "}
+                {formatCurrency(laborCost)}
+              </p>
+            ) : null}
           </CardContent>
         </Card>
 

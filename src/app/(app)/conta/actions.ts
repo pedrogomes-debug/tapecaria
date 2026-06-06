@@ -33,3 +33,46 @@ export async function updateProfile(
   revalidatePath("/", "layout");
   return { error: null, success: true };
 }
+
+export type EmployeeResult = { error: string | null };
+
+export async function saveEmployee(
+  formData: FormData
+): Promise<EmployeeResult> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const id = String(formData.get("id") || "");
+  const payload = {
+    user_id: user.id,
+    name: String(formData.get("name") || "").trim(),
+    role: String(formData.get("role") || "").trim() || null,
+    monthly_salary: Number(formData.get("monthly_salary")) || 0,
+    monthly_hours: Number(formData.get("monthly_hours")) || 220,
+    active: true,
+  };
+
+  if (!payload.name) return { error: "Informe o nome do funcionário." };
+  if (payload.monthly_hours <= 0) {
+    return { error: "As horas mensais precisam ser maiores que zero." };
+  }
+
+  const query = id
+    ? supabase.from("employees").update(payload).eq("id", id)
+    : supabase.from("employees").insert(payload);
+
+  const { error } = await query;
+  if (error) return { error: error.message };
+
+  revalidatePath("/conta");
+  return { error: null };
+}
+
+export async function deleteEmployee(id: string): Promise<EmployeeResult> {
+  await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase.from("employees").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/conta");
+  return { error: null };
+}

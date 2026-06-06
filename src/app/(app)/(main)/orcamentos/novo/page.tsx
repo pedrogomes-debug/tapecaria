@@ -9,21 +9,31 @@ export default async function NovoOrcamentoPage() {
   const user = await requireUser();
   const supabase = await createClient();
 
-  const [{ data: clients }, { data: productTypes }, { data: materials }, settings] =
-    await Promise.all([
-      supabase.from("clients").select("*").eq("user_id", user.id).order("name"),
-      supabase
-        .from("product_types")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("name"),
-      supabase
-        .from("materials")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("name"),
-      getCostSettings(user.id),
-    ]);
+  const [
+    { data: clients },
+    { data: productTypes },
+    { data: materials },
+    { data: employees },
+    settings,
+  ] = await Promise.all([
+    supabase.from("clients").select("*").eq("user_id", user.id).order("name"),
+    supabase
+      .from("product_types")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("name"),
+    supabase
+      .from("materials")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("name"),
+    supabase
+      .from("employees")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("name"),
+    getCostSettings(user.id),
+  ]);
 
   const defaults = {
     laborHourlyRate: settings.labor_hourly_rate,
@@ -46,6 +56,7 @@ export default async function NovoOrcamentoPage() {
         clients={clients ?? []}
         productTypes={productTypes ?? []}
         materials={materials ?? []}
+        employees={employees ?? []}
         defaults={defaults}
       />
     </div>
