@@ -19,7 +19,6 @@ export async function saveClient(formData: FormData): Promise<ActionResult> {
     document: String(formData.get("document") || "").trim() || null,
     address: String(formData.get("address") || "").trim() || null,
     kind: String(formData.get("kind") || "pessoa"),
-    vehicle_info: String(formData.get("vehicle_info") || "").trim() || null,
     notes: String(formData.get("notes") || "").trim() || null,
   };
 
@@ -34,6 +33,75 @@ export async function saveClient(formData: FormData): Promise<ActionResult> {
 
   revalidatePath("/clientes");
   return { error: null };
+}
+
+export type ImportClientInput = {
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  kind?: string | null;
+  document?: string | null;
+  address?: string | null;
+};
+
+export type ImportResult = {
+  error: string | null;
+  inserted?: number;
+  skipped?: number;
+};
+
+function normalizeKind(value?: string | null): "pessoa" | "empresa" {
+  const v = String(value || "")
+    .toLowerCase()
+    .trim();
+  if (
+    v.includes("jur") ||
+    v.includes("pj") ||
+    v.includes("cnpj") ||
+    v.includes("empresa")
+  ) {
+    return "empresa";
+  }
+  return "pessoa";
+}
+
+export async function importClients(
+  rows: ImportClientInput[]
+): Promise<ImportResult> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { error: "Nenhuma linha encontrada no arquivo." };
+  }
+
+  const valid = rows
+    .map((r) => ({
+      user_id: user.id,
+      name: String(r.name || "").trim(),
+      phone: String(r.phone || "").trim() || null,
+      email: String(r.email || "").trim() || null,
+      kind: normalizeKind(r.kind),
+      document: String(r.document || "").trim() || null,
+      address: String(r.address || "").trim() || null,
+      notes: null,
+    }))
+    .filter((r) => r.name.length > 0);
+
+  const skipped = rows.length - valid.length;
+
+  if (valid.length === 0) {
+    return {
+      error: "Nenhum cliente válido (todos sem nome).",
+      skipped,
+    };
+  }
+
+  const { error } = await supabase.from("clients").insert(valid);
+  if (error) return { error: error.message };
+
+  revalidatePath("/clientes");
+  return { error: null, inserted: valid.length, skipped };
 }
 
 export async function deleteClient(id: string): Promise<ActionResult> {

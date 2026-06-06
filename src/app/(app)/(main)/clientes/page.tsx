@@ -16,7 +16,7 @@ export default async function ClientesPage() {
     <div>
       <PageHeader
         title="Clientes"
-        description="Cadastro, contato e dados do veículo para o segmento automotivo."
+        description="Busque por qualquer dado, cadastre manualmente ou importe em lote via Excel."
       />
       <ClientsClient clients={clients ?? []} />
     </div>
