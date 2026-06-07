@@ -240,6 +240,8 @@ export interface Database {
           monthly_salary: number;
           monthly_hours: number;
           active: boolean;
+          contract_type: string;
+          charges_rate: number;
         } & Timestamps;
         Insert: {
           id?: string;
@@ -249,6 +251,8 @@ export interface Database {
           monthly_salary?: number;
           monthly_hours?: number;
           active?: boolean;
+          contract_type?: string;
+          charges_rate?: number;
         };
         Update: Partial<Database["public"]["Tables"]["employees"]["Insert"]>;
         Relationships: [];
@@ -334,11 +338,26 @@ export type Employee = Database["public"]["Tables"]["employees"]["Row"];
 export type BudgetAssignment =
   Database["public"]["Tables"]["budget_assignments"]["Row"];
 
-export function employeeHourlyCost(emp: {
+type EmployeeCostInput = {
   monthly_salary: number;
   monthly_hours: number;
-}): number {
+  contract_type?: string | null;
+  charges_rate?: number | null;
+};
+
+/**
+ * Custo mensal real do funcionário.
+ * CLT: salário + encargos (carga tributária). PJ: apenas o valor pago.
+ */
+export function employeeMonthlyCost(emp: EmployeeCostInput): number {
+  const salary = Number(emp.monthly_salary) || 0;
+  if (emp.contract_type === "pj") return salary;
+  const charges = Number(emp.charges_rate) || 0;
+  return salary * (1 + charges);
+}
+
+export function employeeHourlyCost(emp: EmployeeCostInput): number {
   const hours = Number(emp.monthly_hours) || 0;
   if (hours <= 0) return 0;
-  return (Number(emp.monthly_salary) || 0) / hours;
+  return employeeMonthlyCost(emp) / hours;
 }

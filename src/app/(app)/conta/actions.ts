@@ -43,6 +43,9 @@ export async function saveEmployee(
   const supabase = await createClient();
 
   const id = String(formData.get("id") || "");
+  const contractType =
+    String(formData.get("contract_type") || "clt") === "pj" ? "pj" : "clt";
+  const chargesPct = Number(formData.get("charges_rate")) || 0;
   const payload = {
     user_id: user.id,
     name: String(formData.get("name") || "").trim(),
@@ -50,6 +53,8 @@ export async function saveEmployee(
     monthly_salary: Number(formData.get("monthly_salary")) || 0,
     monthly_hours: Number(formData.get("monthly_hours")) || 220,
     active: true,
+    contract_type: contractType,
+    charges_rate: contractType === "clt" ? chargesPct / 100 : 0,
   };
 
   if (!payload.name) return { error: "Informe o nome do funcionário." };

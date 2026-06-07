@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getCostSettings } from "@/lib/queries";
 import { totalFixedCosts } from "@/lib/pricing";
+import { employeeMonthlyCost } from "@/lib/database.types";
 import { PageHeader } from "@/components/page-header";
 import { MetasClient } from "./metas-client";
 
@@ -18,13 +19,13 @@ export default async function MetasPage() {
       .eq("user_id", user.id),
     supabase
       .from("employees")
-      .select("monthly_salary, active")
+      .select("monthly_salary, monthly_hours, active, contract_type, charges_rate")
       .eq("user_id", user.id),
   ]);
 
   const payroll = (employees ?? [])
     .filter((e) => e.active !== false)
-    .reduce((acc, e) => acc + Number(e.monthly_salary || 0), 0);
+    .reduce((acc, e) => acc + employeeMonthlyCost(e), 0);
 
   const fixedCostsBase = totalFixedCosts(settings.fixed_costs);
 

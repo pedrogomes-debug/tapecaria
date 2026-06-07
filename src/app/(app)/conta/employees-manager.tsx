@@ -23,14 +23,33 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
-import { employeeHourlyCost, type Employee } from "@/lib/database.types";
+import {
+  employeeHourlyCost,
+  employeeMonthlyCost,
+  type Employee,
+} from "@/lib/database.types";
 
 export function EmployeesManager({ employees }: { employees: Employee[] }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
   const [pending, startTransition] = useTransition();
+  const [contractType, setContractType] = useState<"clt" | "pj">("clt");
+
+  function openFor(employee: Employee | null) {
+    setEditing(employee);
+    setContractType((employee?.contract_type as "clt" | "pj") ?? "clt");
+    setOpen(true);
+  }
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -56,13 +75,7 @@ export function EmployeesManager({ employees }: { employees: Employee[] }) {
   return (
     <CardContent className="space-y-4">
       <div className="flex justify-end">
-        <Button
-          size="sm"
-          onClick={() => {
-            setEditing(null);
-            setOpen(true);
-          }}
-        >
+        <Button size="sm" onClick={() => openFor(null)}>
           <Plus className="h-4 w-4" /> Novo funcionário
         </Button>
       </div>
@@ -78,8 +91,9 @@ export function EmployeesManager({ employees }: { employees: Employee[] }) {
           <TableHeader>
             <TableRow>
               <TableHead>Funcionário</TableHead>
+              <TableHead>Tipo</TableHead>
               <TableHead className="text-right">Salário</TableHead>
-              <TableHead className="text-right">Horas/mês</TableHead>
+              <TableHead className="text-right">Custo total</TableHead>
               <TableHead className="text-right">Custo/hora</TableHead>
               <TableHead className="w-20" />
             </TableRow>
@@ -93,11 +107,21 @@ export function EmployeesManager({ employees }: { employees: Employee[] }) {
                     <div className="text-xs text-muted-foreground">{e.role}</div>
                   ) : null}
                 </TableCell>
-                <TableCell className="text-right">
-                  {formatCurrency(Number(e.monthly_salary))}
+                <TableCell>
+                  <Badge variant={e.contract_type === "pj" ? "secondary" : "default"}>
+                    {e.contract_type === "pj" ? "PJ" : "CLT"}
+                  </Badge>
+                  {e.contract_type !== "pj" && Number(e.charges_rate) > 0 ? (
+                    <div className="mt-0.5 text-xs text-muted-foreground">
+                      +{Math.round(Number(e.charges_rate) * 100)}% encargos
+                    </div>
+                  ) : null}
                 </TableCell>
                 <TableCell className="text-right text-muted-foreground">
-                  {Number(e.monthly_hours)}h
+                  {formatCurrency(Number(e.monthly_salary))}
+                </TableCell>
+                <TableCell className="text-right">
+                  {formatCurrency(employeeMonthlyCost(e))}
                 </TableCell>
                 <TableCell className="text-right font-medium">
                   {formatCurrency(employeeHourlyCost(e))}
@@ -107,10 +131,7 @@ export function EmployeesManager({ employees }: { employees: Employee[] }) {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => {
-                        setEditing(e);
-                        setOpen(true);
-                      }}
+                      onClick={() => openFor(e)}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -136,8 +157,8 @@ export function EmployeesManager({ employees }: { employees: Employee[] }) {
               {editing ? "Editar funcionário" : "Novo funcionário"}
             </DialogTitle>
             <DialogDescription>
-              O custo por hora é calculado dividindo o salário pelas horas
-              trabalhadas no mês.
+              No CLT, os encargos (carga tributária) entram no seu custo. No PJ,
+              o custo é apenas o valor pago.
             </DialogDescription>
           </DialogHeader>
           <form action={handleSubmit} className="space-y-4">
@@ -164,6 +185,42 @@ export function EmployeesManager({ employees }: { employees: Employee[] }) {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="emp_contract">Tipo de contrato</Label>
+                <Select
+                  name="contract_type"
+                  value={contractType}
+                  onValueChange={(v) => setContractType(v as "clt" | "pj")}
+                >
+                  <SelectTrigger id="emp_contract">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="clt">CLT</SelectItem>
+                    <SelectItem value="pj">PJ</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {contractType === "clt" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="emp_charges">Encargos (%)</Label>
+                  <Input
+                    id="emp_charges"
+                    name="charges_rate"
+                    type="number"
+                    step="1"
+                    min="0"
+                    placeholder="Ex.: 68"
+                    defaultValue={
+                      editing && editing.contract_type !== "pj"
+                        ? Math.round(Number(editing.charges_rate) * 100)
+                        : 68
+                    }
+                  />
+                </div>
+              ) : (
+                <div className="hidden sm:block" />
+              )}
+              <div className="space-y-2">
                 <Label htmlFor="emp_salary">Salário mensal (R$)</Label>
                 <Input
                   id="emp_salary"
@@ -186,6 +243,12 @@ export function EmployeesManager({ employees }: { employees: Employee[] }) {
                 />
               </div>
             </div>
+            {contractType === "clt" ? (
+              <p className="text-xs text-muted-foreground">
+                Encargos comuns (INSS patronal, FGTS, 13º, férias, etc.) variam
+                conforme o regime. Ajuste o percentual à sua realidade.
+              </p>
+            ) : null}
             <DialogFooter>
               <Button type="submit" disabled={pending}>
                 {pending ? "Salvando..." : "Salvar"}
