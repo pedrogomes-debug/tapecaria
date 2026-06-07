@@ -16,6 +16,7 @@ import {
   CreditCard,
   LogOut,
   UserCircle,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ const nav = [
   { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/materiais", label: "Matéria-prima", icon: Package },
   { href: "/produtos", label: "Produtos", icon: Sofa },
+  { href: "/metas", label: "Meta de pró-labore", icon: Target },
   { href: "/configuracoes/custos", label: "Custos & margem", icon: Settings },
 ];
 

@@ -142,6 +142,8 @@ export interface Database {
           default_tax_rate: number;
           default_profit_margin: number;
           default_card_fee: number;
+          prolabore_goal: number;
+          variable_cost_rate: number;
         } & Timestamps;
         Insert: {
           id?: string;
@@ -152,6 +154,8 @@ export interface Database {
           default_tax_rate?: number;
           default_profit_margin?: number;
           default_card_fee?: number;
+          prolabore_goal?: number;
+          variable_cost_rate?: number;
         };
         Update: Partial<
           Database["public"]["Tables"]["cost_settings"]["Insert"]
