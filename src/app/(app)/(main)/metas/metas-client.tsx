@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { Target, TrendingUp, Clock, CalendarDays, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { saveProlaboreGoal } from "./actions";
@@ -144,6 +145,18 @@ export function MetasClient({ defaults }: { defaults: MetasDefaults }) {
                 value={fixedCosts || ""}
                 onChange={(e) => setFixedCosts(Number(e.target.value))}
               />
+              <p className="text-xs text-muted-foreground">
+                Base vinda de{" "}
+                <Link
+                  href="/configuracoes/custos"
+                  className="font-medium text-primary underline-offset-2 hover:underline"
+                >
+                  Custos &amp; margem
+                </Link>
+                {defaults.fixedCosts > 0
+                  ? ` (${formatCurrency(defaults.fixedCosts)}).`
+                  : ". Cadastre seus custos fixos lá."}
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="variable">
