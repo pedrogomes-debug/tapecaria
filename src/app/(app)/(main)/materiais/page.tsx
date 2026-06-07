@@ -17,7 +17,7 @@ export default async function MateriaisPage() {
     <div>
       <PageHeader
         title="Matéria-prima"
-        description="Cadastre tecidos, espumas, madeiras, chapas, plumantes e aviamentos com o custo por unidade."
+        description="Cadastre por unidade ou importe em lote via Excel: tecidos, espumas, madeiras, chapas, plumantes e aviamentos."
       />
       <MaterialsClient materials={materials ?? []} />
     </div>

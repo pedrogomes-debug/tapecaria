@@ -23,7 +23,47 @@ export const MATERIAL_CATEGORY_LABEL: Record<MaterialCategory, string> =
     MATERIAL_CATEGORIES.map((c) => [c.value, c.label])
   ) as Record<MaterialCategory, string>;
 
-export const UNITS = ["m", "m²", "kg", "un", "L", "par", "rolo", "h"];
+export const UNITS = [
+  "un",
+  "pç",
+  "par",
+  "jogo",
+  "kit",
+  "conjunto",
+  "m",
+  "m²",
+  "m³",
+  "m.l.",
+  "cm",
+  "cm²",
+  "mm",
+  "kg",
+  "g",
+  "ton",
+  "L",
+  "mL",
+  "galão",
+  "rolo",
+  "bobina",
+  "folha",
+  "chapa",
+  "placa",
+  "barra",
+  "tubo",
+  "perfil",
+  "caixa",
+  "pacote",
+  "saco",
+  "fardo",
+  "lata",
+  "balde",
+  "pote",
+  "bisnaga",
+  "dúzia",
+  "cento",
+  "milheiro",
+  "h",
+];
 
 export const SEGMENTS: { value: Segment; label: string }[] = [
   { value: "moveis", label: "Móveis" },
