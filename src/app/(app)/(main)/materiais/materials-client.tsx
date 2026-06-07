@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import {
   Pencil,
   Plus,
@@ -8,6 +8,7 @@ import {
   Upload,
   Download,
   FileSpreadsheet,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -71,6 +72,27 @@ export function MaterialsClient({ materials }: { materials: Material[] }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Material | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return materials;
+    return materials.filter((m) => {
+      const haystack = [
+        m.name,
+        MATERIAL_CATEGORY_LABEL[m.category],
+        m.unit,
+        String(m.unit_cost),
+        m.supplier,
+        m.notes,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [materials, search]);
 
   const [importOpen, setImportOpen] = useState(false);
   const [parsedRows, setParsedRows] = useState<ImportMaterialInput[]>([]);
@@ -182,13 +204,24 @@ export function MaterialsClient({ materials }: { materials: Material[] }) {
 
   return (
     <>
-      <div className="mb-4 flex justify-end gap-2">
-        <Button variant="outline" onClick={() => setImportOpen(true)}>
-          <Upload className="h-4 w-4" /> Importar Excel
-        </Button>
-        <Button onClick={openNew}>
-          <Plus className="h-4 w-4" /> Novo material
-        </Button>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, categoria, unidade, custo, fornecedor..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="h-4 w-4" /> Importar Excel
+          </Button>
+          <Button onClick={openNew}>
+            <Plus className="h-4 w-4" /> Novo material
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -197,6 +230,10 @@ export function MaterialsClient({ materials }: { materials: Material[] }) {
             <div className="p-10 text-center text-sm text-muted-foreground">
               Nenhuma matéria-prima cadastrada ainda. Adicione tecidos, espumas,
               madeiras, chapas, plumantes e aviamentos.
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="p-10 text-center text-sm text-muted-foreground">
+              Nenhum material encontrado para “{search}”.
             </div>
           ) : (
             <Table>
@@ -211,7 +248,7 @@ export function MaterialsClient({ materials }: { materials: Material[] }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {materials.map((m) => (
+                {filtered.map((m) => (
                   <TableRow key={m.id}>
                     <TableCell className="font-medium">{m.name}</TableCell>
                     <TableCell>
