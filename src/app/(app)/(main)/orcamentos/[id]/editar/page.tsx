@@ -98,6 +98,7 @@ export default async function EditarOrcamentoPage({
     product_type_id: budget.product_type_id,
     segment: budget.segment as Segment,
     notes: budget.notes,
+    service_description: budget.service_description,
     valid_until: budget.valid_until,
     fixed_cost: Number(budget.fixed_cost),
     labor_hours: laborHours,

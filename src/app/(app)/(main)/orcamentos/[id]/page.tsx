@@ -25,6 +25,7 @@ import { BUDGET_STATUS_MAP } from "@/lib/constants";
 import type { BudgetStatus } from "@/lib/database.types";
 import { StatusControl } from "./status-control";
 import { PrintButton } from "./print-button";
+import { DownloadPdfButton } from "./download-pdf-button";
 
 export default async function BudgetDetailPage({
   params,
@@ -103,6 +104,18 @@ export default async function BudgetDetailPage({
             </Link>
           </Button>
           <PrintButton />
+          <DownloadPdfButton
+            data={{
+              company,
+              companyPhone: profile.data?.phone ?? null,
+              title: budget.title,
+              clientName: client?.name ?? null,
+              createdAt: budget.created_at,
+              validUntil: budget.valid_until,
+              serviceDescription: budget.service_description,
+              salePrice: Number(budget.sale_price),
+            }}
+          />
         </div>
       </div>
 
@@ -140,6 +153,17 @@ export default async function BudgetDetailPage({
                   Produto: {productType.name}
                 </p>
               ) : null}
+            </div>
+          ) : null}
+
+          {budget.service_description ? (
+            <div>
+              <h3 className="mb-2 text-sm font-semibold">
+                Descritivo do serviço
+              </h3>
+              <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                {budget.service_description}
+              </p>
             </div>
           ) : null}
 

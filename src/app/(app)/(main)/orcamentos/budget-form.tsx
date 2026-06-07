@@ -53,6 +53,7 @@ export interface BudgetFormInitial {
   product_type_id: string | null;
   segment: Segment;
   notes: string | null;
+  service_description: string | null;
   valid_until: string | null;
   fixed_cost: number;
   labor_hours: number;
@@ -122,6 +123,9 @@ export function BudgetForm({
   );
   const [segment, setSegment] = useState<Segment>(initial?.segment ?? "moveis");
   const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [serviceDescription, setServiceDescription] = useState(
+    initial?.service_description ?? ""
+  );
   const [validUntil, setValidUntil] = useState(initial?.valid_until ?? "");
 
   const [fixedPerHour, setFixedPerHour] = useState(
@@ -252,6 +256,7 @@ export function BudgetForm({
       title,
       segment,
       notes,
+      service_description: serviceDescription,
       valid_until: validUntil || null,
       fixed_cost_per_hour: fixedPerHour || 0,
       tax_rate: taxPct / 100,
@@ -707,14 +712,35 @@ export function BudgetForm({
 
         <Card>
           <CardHeader>
-            <CardTitle>Observações</CardTitle>
+            <CardTitle>Descritivo do serviço</CardTitle>
+            <CardDescription>
+              Este é o texto que aparece no orçamento do cliente (junto com o
+              valor final). Descreva o serviço a ser realizado.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              rows={5}
+              value={serviceDescription ?? ""}
+              onChange={(e) => setServiceDescription(e.target.value)}
+              placeholder="Ex.: Reforma completa de sofá 3 lugares: troca de espuma do assento e encosto, novo tecido suede cinza, revisão da estrutura de madeira e reforço do percinta."
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Observações internas</CardTitle>
+            <CardDescription>
+              Anotações para uso interno (não aparecem no PDF do cliente).
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Textarea
               rows={3}
               value={notes ?? ""}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Detalhes do serviço, prazo, condições..."
+              placeholder="Prazo, condições, lembretes..."
             />
           </CardContent>
         </Card>

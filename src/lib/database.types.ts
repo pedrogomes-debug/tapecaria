@@ -199,6 +199,7 @@ export interface Database {
           sale_price: number;
           profit_amount: number;
           notes: string | null;
+          service_description: string | null;
           valid_until: string | null;
         } & Timestamps;
         Insert: {
@@ -220,6 +221,7 @@ export interface Database {
           sale_price?: number;
           profit_amount?: number;
           notes?: string | null;
+          service_description?: string | null;
           valid_until?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["budgets"]["Insert"]>;

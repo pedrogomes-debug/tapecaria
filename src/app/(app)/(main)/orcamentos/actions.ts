@@ -29,6 +29,7 @@ export interface BudgetInput {
   title: string;
   segment: Segment;
   notes?: string | null;
+  service_description?: string | null;
   valid_until?: string | null;
   fixed_cost_per_hour: number;
   tax_rate: number;
@@ -91,6 +92,7 @@ export async function saveBudget(
     title: input.title.trim(),
     segment: input.segment,
     notes: input.notes?.trim() || null,
+    service_description: input.service_description?.trim() || null,
     valid_until: input.valid_until || null,
     materials_cost: pricing.materialsCost,
     labor_hours: laborHours,
