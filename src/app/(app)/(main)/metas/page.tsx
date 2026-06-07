@@ -11,10 +11,22 @@ export default async function MetasPage() {
 
   const settings = await getCostSettings(user.id);
 
-  const { data: budgets } = await supabase
-    .from("budgets")
-    .select("sale_price, labor_hours")
-    .eq("user_id", user.id);
+  const [{ data: budgets }, { data: employees }] = await Promise.all([
+    supabase
+      .from("budgets")
+      .select("sale_price, labor_hours")
+      .eq("user_id", user.id),
+    supabase
+      .from("employees")
+      .select("monthly_salary, active")
+      .eq("user_id", user.id),
+  ]);
+
+  const payroll = (employees ?? [])
+    .filter((e) => e.active !== false)
+    .reduce((acc, e) => acc + Number(e.monthly_salary || 0), 0);
+
+  const fixedCostsBase = totalFixedCosts(settings.fixed_costs);
 
   const prices = (budgets ?? [])
     .map((b) => Number(b.sale_price))
@@ -41,7 +53,9 @@ export default async function MetasPage() {
       <MetasClient
         defaults={{
           prolaboreGoal: settings.prolabore_goal,
-          fixedCosts: totalFixedCosts(settings.fixed_costs),
+          fixedCosts: fixedCostsBase + payroll,
+          fixedCostsBase,
+          payroll,
           taxRate: settings.default_tax_rate,
           cardFee: settings.default_card_fee,
           variableCostRate: settings.variable_cost_rate,

@@ -21,6 +21,8 @@ import { formatCurrency, formatPercent } from "@/lib/utils";
 export interface MetasDefaults {
   prolaboreGoal: number;
   fixedCosts: number;
+  fixedCostsBase: number;
+  payroll: number;
   taxRate: number;
   cardFee: number;
   variableCostRate: number;
@@ -146,16 +148,28 @@ export function MetasClient({ defaults }: { defaults: MetasDefaults }) {
                 onChange={(e) => setFixedCosts(Number(e.target.value))}
               />
               <p className="text-xs text-muted-foreground">
-                Base vinda de{" "}
+                Base:{" "}
                 <Link
                   href="/configuracoes/custos"
                   className="font-medium text-primary underline-offset-2 hover:underline"
                 >
                   Custos &amp; margem
-                </Link>
-                {defaults.fixedCosts > 0
-                  ? ` (${formatCurrency(defaults.fixedCosts)}).`
-                  : ". Cadastre seus custos fixos lá."}
+                </Link>{" "}
+                ({formatCurrency(defaults.fixedCostsBase)})
+                {defaults.payroll > 0 ? (
+                  <>
+                    {" + folha de funcionários ("}
+                    <Link
+                      href="/conta"
+                      className="font-medium text-primary underline-offset-2 hover:underline"
+                    >
+                      Minha Tapeçaria
+                    </Link>
+                    {`: ${formatCurrency(defaults.payroll)}).`}
+                  </>
+                ) : (
+                  "."
+                )}
               </p>
             </div>
             <div className="space-y-2">
