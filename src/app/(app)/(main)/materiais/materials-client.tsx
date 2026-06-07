@@ -252,12 +252,6 @@ export function MaterialsClient({ materials }: { materials: Material[] }) {
         </CardContent>
       </Card>
 
-      <datalist id="units-list">
-        {UNITS.map((u) => (
-          <option key={u} value={u} />
-        ))}
-      </datalist>
-
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
@@ -303,14 +297,18 @@ export function MaterialsClient({ materials }: { materials: Material[] }) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="unit">Unidade</Label>
-                <Input
-                  id="unit"
-                  name="unit"
-                  list="units-list"
-                  placeholder="Ex.: m, m², kg, un..."
-                  defaultValue={editing?.unit ?? "m"}
-                  required
-                />
+                <Select name="unit" defaultValue={editing?.unit ?? "m"}>
+                  <SelectTrigger id="unit">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {UNITS.map((u) => (
+                      <SelectItem key={u} value={u}>
+                        {u}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
